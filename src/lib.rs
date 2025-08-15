@@ -185,6 +185,11 @@ impl Settings {
 
 /// upload many files concurrently
 pub async fn upload_many(files: Vec<String>, settings: Arc<Settings>) {
+    if files.is_empty() {
+        eprintln!("No files to upload.");
+        return;
+    }
+
     let mut headers = HeaderMap::new();
     headers.insert("x-auth-token", settings.token.parse().unwrap());
     let client = Client::builder().default_headers(headers).build().unwrap();
@@ -214,6 +219,9 @@ pub async fn upload_many(files: Vec<String>, settings: Arc<Settings>) {
                 if let Some(ErrorKind::Unauthorized) = info.error {
                     eprintln!("Unauthorized: Check your token.");
                     return;
+                }
+                if let Some(ErrorKind::ReadError) = info.error {
+                    eprintln!("Error reading file: {}", info.path);
                 }
                 // TODO: could also stop if the error rate after some point is too high
                 progress.update(&info, true)

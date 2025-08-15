@@ -1,5 +1,3 @@
-use std::env;
-
 use clap::Parser;
 use upload::{upload_many, Settings};
 
@@ -9,7 +7,7 @@ struct Args {
     #[clap(short, long)]
     endpoint: Option<String>,
     /// sciserver token, defaults to SCISERVER_TOKEN env var
-    #[clap(short, long)]
+    #[clap(short, long, env = "SCISERVER_TOKEN")]
     token: Option<String>,
     /// number of concurrent uploads, defaults to 10
     #[clap(short, long)]
@@ -33,7 +31,7 @@ async fn main() {
     let prefix = format!("{}/{}", endpoint.trim_matches('/'), args.path.trim_matches('/'));
     let cons = args.cons.unwrap_or(10);
     let retries = args.cons.unwrap_or(3);
-    let token = args.token.unwrap_or_else(|| env::var("SCISERVER_TOKEN").expect("token not set"));
+    let token = args.token.expect("token not set");
 
     let settings = Settings::new(
         prefix,
