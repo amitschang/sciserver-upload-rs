@@ -1327,6 +1327,7 @@ dependencies = [
  "reqwest",
  "tempfile",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
