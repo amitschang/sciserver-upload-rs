@@ -108,7 +108,9 @@ async fn file_info(file_path: &str) -> Option<(File, &str, u64)> {
     None
 }
 
-async fn upload_file(client: Client, file_path: String, settings: Arc<Settings>, bytes_streamed: Arc<AtomicU64>) -> UploadInfo {
+async fn upload_file(
+    client: Client, file_path: String, settings: Arc<Settings>, bytes_streamed: Arc<AtomicU64>
+) -> UploadInfo {
     let mut info = UploadInfo::new(file_path.clone());
     let (file, file_name, file_size) = match file_info(&file_path).await {
         Some((file, name, bytes)) => { info.set_bytes(bytes); (file, name, bytes) },
