@@ -72,7 +72,8 @@ impl ProgressReader {
     }
 }
 
-/// Trait enables us to wrap in reqwest Body stream
+/// Implementing `AsyncRead` for `ProgressReader` allows it to be converted into a
+/// streamed `reqwest::Body` while tracking upload progress.
 impl AsyncRead for ProgressReader {
     fn poll_read(
         mut self: Pin<&mut Self>,
