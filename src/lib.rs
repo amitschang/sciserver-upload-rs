@@ -303,8 +303,7 @@ pub async fn upload_many(files: Vec<String>, settings: Arc<Settings>) {
                         // other uploads using the same token.
                         if let Some(ErrorKind::Unauthorized) = info.error {
                             eprintln!("\nUnauthorized: Check your token.");
-                            progress.write_error_report();
-                            return;
+                            break;
                         }
                         // TODO: could also stop if the error rate after some point is too high
                         progress.update(info);
