@@ -6,7 +6,8 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.40", features = ["derive", "env"] }
 reqwest = { version = "0.12.20", features = ["stream"] }
-tokio = { version = "1.45.1", features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1.45.1", features = ["macros", "rt", "rt-multi-thread", "time"] }
+tokio-util = { version = "0.7.18", features = ["io"] }
 
 [dev-dependencies]
 tempfile = "3.20.0"
