@@ -138,10 +138,10 @@ async fn upload_file(
             .await;
         if let Ok(response) = result {
             if response.status() != StatusCode::OK {
-                // If the upload failed, we need to subtract the optimistically
-                // added bytes for this attempt before checking the error and
-                // potentially retrying, since any next attempt will re-add from
-                // the start of the file.
+                // If the upload failed, subtract the bytes that were actually
+                // read/streamed during this attempt before checking the error and
+                // potentially retrying, since any next attempt will re-add bytes
+                // starting from the beginning of the file.
                 bytes_streamed.fetch_sub(counter.load(Ordering::Relaxed), Ordering::Relaxed);
             }
             match response.status() {
