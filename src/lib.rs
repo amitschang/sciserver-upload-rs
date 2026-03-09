@@ -136,6 +136,13 @@ async fn upload_file(
             .send()
             .await;
         if let Ok(response) = result {
+            if response.status() != StatusCode::OK {
+                // If the upload failed, we need to subtract the optimistically
+                // added bytes for this attempt before checking the error and
+                // potentially retrying, since any next attempt will re-add from
+                // the start of the file.
+                bytes_streamed.fetch_sub(counter.load(Ordering::Relaxed), Ordering::Relaxed);
+            }
             match response.status() {
                 StatusCode::OK => { return info.with_success(); },
                 StatusCode::INTERNAL_SERVER_ERROR => {
@@ -146,11 +153,10 @@ async fn upload_file(
                 StatusCode::UNAUTHORIZED => return info.with_error(ErrorKind::Unauthorized),
                 _ => (), // retryable
             }
+        } else {
+            // in case some got read but the request itself errored
+            bytes_streamed.fetch_sub(counter.load(Ordering::Relaxed), Ordering::Relaxed);
         }
-        // Subtract this attempt's bytes before retrying, as we have updated the
-        // counter optimistically during the put, but must redo from the start
-        bytes_streamed.fetch_sub(counter.load(Ordering::Relaxed), Ordering::Relaxed);
-
         if info.incr_retries() >= settings.retries {
             return info.with_error(ErrorKind::Other);
         }
@@ -354,5 +360,42 @@ mod tests {
         } else {
             panic!("File info should not be None");
         }
+    }
+
+    #[tokio::test]
+    async fn test_progress_reader() {
+        use tokio::io::AsyncReadExt;
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let file_path = tempdir.path().join("progress_test.txt");
+        let content = vec![b'x'; 1000];
+        std::fs::write(&file_path, &content).unwrap();
+
+        let file = File::open(&file_path).await.unwrap();
+        let bytes_streamed = Arc::new(AtomicU64::new(0));
+        let (mut reader, bytes_read) = ProgressReader::new(file, bytes_streamed.clone());
+
+        assert_eq!(bytes_streamed.load(Ordering::Relaxed), 0);
+        assert_eq!(bytes_read.load(Ordering::Relaxed), 0);
+
+        let mut buf = vec![0u8; 256];
+        let n = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n, 256);
+        assert_eq!(bytes_streamed.load(Ordering::Relaxed), 256);
+        assert_eq!(bytes_read.load(Ordering::Relaxed), 256);
+
+        // Read the rest
+        let mut total = n;
+        while total < 1000 {
+            let n = reader.read(&mut buf).await.unwrap();
+            total += n;
+        }
+        assert_eq!(bytes_streamed.load(Ordering::Relaxed), 1000);
+        assert_eq!(bytes_read.load(Ordering::Relaxed), 1000);
+
+        // EOF returns 0 and counters stay unchanged
+        let n = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n, 0);
+        assert_eq!(bytes_streamed.load(Ordering::Relaxed), 1000);
     }
 }
